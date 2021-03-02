@@ -63,6 +63,7 @@ namespace zim
                        bool withIndex, std::string language,
                        CompressionType compression);
         virtual ~CreatorData();
+        void closeThreads();
 
         void addDirent(Dirent* dirent);
         void addItemData(Dirent* dirent, std::unique_ptr<ContentProvider> provider, bool compressContent);

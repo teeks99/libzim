@@ -272,17 +272,7 @@ namespace zim
         wait += 10;
       } while(ClusterTask::waiting_task.load() > 0);
 
-      // Quit all workerThreads
-      for (auto i=0U; i< m_nbWorkers; i++) {
-        data->taskList.pushToQueue(nullptr);
-      }
-      for(auto& thread: data->workerThreads) {
-        thread.join();
-      }
-
-      // Wait for writerThread to finish.
-      data->clusterToWrite.pushToQueue(nullptr);
-      data->writerThread.join();
+      data->closeThreads();
 
       TINFO(data->dirents.size() << " title index created");
       TINFO(data->clustersList.size() << " clusters created");
@@ -469,12 +459,32 @@ namespace zim
 
     CreatorData::~CreatorData()
     {
+      closeThreads();
       if (compCluster)
         delete compCluster;
       if (uncompCluster)
         delete uncompCluster;
       for(auto& cluster: clustersList) {
         delete cluster;
+      }
+    }
+
+    void CreatorData::closeThreads()
+    {
+      // Quit all workerThreads
+      for (auto i=0U; i< workerThreads.size(); i++) {
+        taskList.pushToQueue(nullptr);
+      }
+      for(auto& thread: workerThreads) {
+        if (thread.joinable()) {
+          thread.join();
+        }
+      }
+
+      // Wait for writerThread to finish.
+      clusterToWrite.pushToQueue(nullptr);
+      if (writerThread.joinable()) {
+        writerThread.join();
       }
     }
 
