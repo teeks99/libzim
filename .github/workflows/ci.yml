@@ -117,32 +117,13 @@ jobs:
     container:
       image: "kiwix/kiwix-build_ci:${{matrix.image_variant}}-31"
     steps:
-    - name: Extract branch name
-      shell: bash
-      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-      id: extract_branch
     - name: Checkout code
-      shell: python
-      run: |
-        from subprocess import check_call
-        from os import environ
-        config_command = [
-          'git', 'config', '--global',
-          'http.postBuffer', '1048576000'
-        ]
-        check_call(config_command, cwd=environ['HOME'])
-        clone_command = [
-          'git', 'clone',
-          'https://github.com/${{github.repository}}',
-          '--depth=1',
-          '--branch', '${{steps.extract_branch.outputs.branch}}'
-        ]
-        check_call(clone_command, cwd=environ['HOME'])
+      uses: actions/checkout@v3
     - name: Install deps
       shell: bash
       run: |
         ARCHIVE_NAME=deps2_${OS_NAME}_${{matrix.target}}_libzim.tar.xz
-        wget -O- http://tmp.kiwix.org/ci/${ARCHIVE_NAME} | tar -xJ -C /home/runner
+        wget -O- http://tmp.kiwix.org/ci/${ARCHIVE_NAME} | tar -xJ -C $HOME
     - name: Compile
       shell: bash
       run: |
@@ -159,7 +140,7 @@ jobs:
         if [[ "${{matrix.target}}" =~ android_.* ]]; then
           MESON_OPTION="$MESON_OPTION -Dandroid=true"
         fi
-        cd $HOME/libzim
+        cd $GITHUB_WORKSPACE
         meson . build ${MESON_OPTION} -Dwith_xapian=${{matrix.with_xapian}}
         cd build
         ninja
@@ -169,7 +150,7 @@ jobs:
       if: startsWith(matrix.target, 'native_')
       shell: bash
       run: |
-        cd $HOME/libzim/build
+        cd $GITHUB_WORKSPACE/build
         ninja download_test_data
         meson test --verbose
         ninja coverage
@@ -179,7 +160,7 @@ jobs:
     - name: Publish coverage
       shell: bash
       run: |
-        cd $HOME/libzim
+        cd $GITHUB_WORKSPACE
         curl https://codecov.io/bash -o codecov.sh
         bash codecov.sh -n "${OS_NAME}_${{matrix.target}}" -Z
         rm codecov.sh
